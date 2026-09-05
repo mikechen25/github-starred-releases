@@ -15,7 +15,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
+        with:name: keepalive
+
+# GitHub disables scheduled workflows in repositories with no activity for 60 days.
+# This workflow runs once a month and ALWAYS pushes a single empty commit, which
+# keeps the hourly feed workflow's schedule alive. `contents: write` is granted
+# only here and only for that empty commit; the feed workflow stays read-only.
+on:
+  schedule:
+    - cron: "17 3 1 * *" # 1st day of every month, 03:17 UTC
+  workflow_dispatch: {} # manual trigger, so the workflow can be verified on demand
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Push one empty commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "chore: monthly keep-alive for scheduled workflows"
+          git push
+
           fetch-depth: 2
 
       - name: Push empty commit if the repo has been quiet for 55+ days
