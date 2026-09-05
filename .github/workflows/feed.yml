@@ -1,0 +1,47 @@
+name: starred-releases-feed
+
+on:
+  schedule:
+    # Every hour at minute 23 (UTC). GitHub may delay cron runs under load; that is fine.
+    - cron: "23 * * * *"
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: [".github/workflows/feed.yml", "build_feed.py"]
+
+# Least privilege for this job: only what Pages artifact deployment needs.
+# contents: read is used by checkout. No repo write permission here.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: starred-releases-feed
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Atom feed from GitHub REST API (read-only)
+        env:
+          # Auto-injected workflow token: scoped to THIS repo only, never stored anywhere.
+          GH_TOKEN: ${{ github.token }}
+          GH_USER: mikechen25
+          FEED_URL: https://mikechen25.github.io/github-starred-releases/index.xml
+        run: python3 build_feed.py
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
