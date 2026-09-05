@@ -1,0 +1,33 @@
+name: keepalive
+
+# GitHub disables scheduled workflows in repositories with no activity for 60 days.
+# This monthly run pushes an empty commit only when the last commit is older than 55 days,
+# which keeps the hourly feed workflow alive without spamming the history.
+on:
+  schedule:
+    - cron: "17 3 1 * *" # 1st day of every month, 03:17 UTC
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Push empty commit if the repo has been quiet for 55+ days
+        run: |
+          last="$(git log -1 --format=%cI 2>/dev/null || true)"
+          now="$(date +%s)"
+          if [ -z "$last" ] || [ "$(( now - $(date -d "$last" +%s) ))" -ge "$((55 * 86400))" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "chore: keep scheduled workflows alive"
+            git push
+            echo "keep-alive commit pushed"
+          else
+            echo "repo is active, nothing to do"
+          fi
